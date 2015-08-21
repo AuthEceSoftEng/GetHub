@@ -24,6 +24,8 @@ import org.eclipse.jgit.api.errors.TransportException;
 
 public class Githubdownloader implements GitHubDownloaderInterface {
 	
+	
+	//provide info once
 	private static String username;
 	private static String password;
 	private static String name;
@@ -176,7 +178,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			
 			//If loop to select which issues to download. 
 			//0 is for all, 1 is for open only, 2 is for closed only.
-			
+			ArrayList<String> issueResponses = new ArrayList<String>();
 			if ( state==0 )
 			{
 				
@@ -204,8 +206,11 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 							.json();
 						
 					jsonRequestArray= jsonRequestResponse.readArray();
-					System.out.println(jsonRequestArray.toString());
-					
+					issueResponses.add(jsonRequestArray.toString());
+				}
+				for(String r : issueResponses)
+				{
+					System.out.println(r);
 				}
 			}
 			else if( state ==1 )
@@ -229,8 +234,12 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 							.as(JsonResponse.class)
 							.json();
 						
-					jsonRequestArray = jsonRequestResponse.readArray();
-						System.out.println(jsonRequestArray.toString());
+					jsonRequestArray= jsonRequestResponse.readArray();
+					issueResponses.add(jsonRequestArray.toString());
+				}
+				for(String r : issueResponses)
+				{
+					System.out.println(r);
 				}
 			}
 			
@@ -240,6 +249,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 				//do the same for closed issues
 				String responseString = o.getRequest(username, password, username, repositoryName, "issues", "state", "closed",g);
 				int lastPage = o.getPages(responseString);
+				
 				
 				for (int i=1 ; i<=lastPage ; i++)
 				{
@@ -256,7 +266,11 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 							.json();
 						
 					jsonRequestArray= jsonRequestResponse.readArray();
-						System.out.println(jsonRequestArray.toString());
+					issueResponses.add(jsonRequestArray.toString());
+				}
+				for(String r : issueResponses)
+				{
+					System.out.println(r);
 				}
 			}
 			else
@@ -296,6 +310,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		
 		while(responseString.contains("; rel=\"next\""))
 		{
+			
 			commit_responses.add( responseString.substring( responseString.indexOf("[{\"sha\""), responseString.length() ) );
 			i++;
 			System.out.println("grabbing commit page "+String.valueOf(i));
