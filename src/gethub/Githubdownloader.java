@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 import javax.json.JsonArray;
+
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
@@ -17,12 +18,26 @@ import com.jcabi.http.wire.RetryWire;
 
 import java.io.File;
 
+
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 
 public class Githubdownloader implements GitHubDownloaderInterface {
+	
+	//TODO:add from:to feature
+	//before storage , do all API transactions via json, and get date keyset, then decide if it's storage worthy
+	//eg
+	// get jsonarray
+	//get object
+	// isOk(jsonObject.date())
+	// store jsonResponse.toString() or the json response itself. we'll see
+	//otherwise continue
+	
+	
+	
+	
 	
 	
 	//provide info once
@@ -335,11 +350,16 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		
 	}
 	
-/*	public void cloneRepo() throws IOException, InvalidRemoteException, TransportException, GitAPIException
+	
+	// pulled straight from
+	// https://github.com/centic9/jgit-cookbook/blob/master/src/main/java/org/dstadler/jgit/porcelain/CloneRemoteRepository.java
+	
+	public void cloneRepo() throws IOException, InvalidRemoteException, TransportException, GitAPIException
 	{
 		
-		String REMOTE_URL = "https://github.com/github/testrepo.git";
-		File localPath = File.createTempFile("TestGitRepository", "");
+		String REMOTE_URL = "https://github.com/"+name+"/"+repositoryName+".git";
+		File localPath = File.createTempFile("TestGitRepository","");
+		
 	    localPath.delete();
 	    
 	    System.out.println("Cloning from " + REMOTE_URL + " to " + localPath);
@@ -352,13 +372,14 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	        System.out.println("Having repository: " + result.getRepository().getDirectory());
         } finally {
         	result.getRepository().close();
-        	result.close();
+        	
         }
 	    
-	}*/
+	}
 
+	
 	public static void main(String[] args) throws IOException, InvalidRemoteException, TransportException, GitAPIException {
-		// Login first, using username/password , or your OAuth token (later).
+		//Login first, using username/password , or your OAuth token (later).
 		//username/password are our own
 		//name is the name of the github user who owns the repository we're interested in.
 		//repositoryName is the repository name we're interested in.
@@ -371,7 +392,8 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		//o.login(username, password);
 		//o.getGithubUserInfo("jcabi",username,password);
 		//o.getIssues(username,password,name,repositoryName,state);
-		o.getCommits(username, password, name, repositoryName);
+		//o.getCommits(username, password, name, repositoryName);
+		o.cloneRepo();
 	
 		
 		
