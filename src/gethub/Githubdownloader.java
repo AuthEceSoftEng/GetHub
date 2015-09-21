@@ -4,9 +4,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.json.JsonArray;
-
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
@@ -17,7 +18,6 @@ import com.jcabi.http.response.JsonResponse;
 import com.jcabi.http.wire.RetryWire;
 
 import java.io.File;
-
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -34,6 +34,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	// isOk(jsonObject.date())
 	// store jsonResponse.toString() or the json response itself. we'll see
 	//otherwise continue
+	//just do it from the API
 	
 	
 	
@@ -117,7 +118,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	}
 	
 	//TODO:use this one?
-	public String getRequest(String username,String password,String name,String repositoryName,String resource,String param1,String param2, Github g)
+	public String getRequest(String username,String password,String name,String repositoryName,String resource, Map params, Github g)
 	{
 		
 		
@@ -129,7 +130,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 					.entry()
 					.uri()
 					.path("/repos/"+name+"/"+repositoryName+"/"+resource)
-					.queryParam(param1, param2)
+					.queryParams(params)
 					.back()
 					.method(Request.GET)
 					.fetch()
@@ -161,14 +162,14 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		return lastPage;
 	}
 	
-	public void getIssues(String username,String password,String name,String repositoryName,int state)
+	public void getIssues(String username,String password,String name,String repositoryName,int state,String from)
 	
 	{
 		//open a login window
 		Githubdownloader o = new Githubdownloader();
 		Github g =o.login(username, password);
 		
-		
+		String stateParameter="all";
 		JsonReader jsonRequestResponse;
 		JsonArray jsonRequestArray;
 		
@@ -196,107 +197,72 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			ArrayList<String> issueResponses = new ArrayList<String>();
 			if ( state==0 )
 			{
-				
-				//raw request response String
-				String responseString = o.getRequest(username, password, name, repositoryName, "issues","state","all",g);
-				
-				int lastPage = o.getPages(responseString);
-			
-				
-				//Loop through all pages and get response back. 
-				//TODO:work on real storage, not just printing it.
-				for (int i=1 ; i<=lastPage ; i++)
-				{
-					
-					jsonRequestResponse = g
-							.entry()
-							.uri()
-							.path("/repos/"+name+"/"+repositoryName+"/issues")
-							.queryParam("state", "all")
-							.queryParam("page", String.valueOf(i))
-							.back()
-							.method(Request.GET)
-							.fetch()
-							.as(JsonResponse.class)
-							.json();
-						
-					jsonRequestArray= jsonRequestResponse.readArray();
-					issueResponses.add(jsonRequestArray.toString());
-				}
-				for(String r : issueResponses)
-				{
-					System.out.println(r);
-				}
+				stateParameter="all";
 			}
 			else if( state ==1 )
 			{
-				
-				//do the same for open issues
-				String responseString = o.getRequest(username, password, username, repositoryName, "issues", "state", "open",g);
-				int lastPage = o.getPages(responseString);
-				
-				for (int i=1 ; i<=lastPage ; i++)
-				{
-					jsonRequestResponse = g
-							.entry()
-							.uri()
-							.path("/repos/"+name+"/"+repositoryName+"/issues")
-							.queryParam("state", "open")
-							.queryParam("page", String.valueOf(i))
-							.back()
-							.method(Request.GET)
-							.fetch()
-							.as(JsonResponse.class)
-							.json();
-						
-					jsonRequestArray= jsonRequestResponse.readArray();
-					issueResponses.add(jsonRequestArray.toString());
-				}
-				for(String r : issueResponses)
-				{
-					System.out.println(r);
-				}
+				stateParameter="open";
 			}
 			
 			else if ( state == 2)
 			{
-				
-				//do the same for closed issues
-				String responseString = o.getRequest(username, password, username, repositoryName, "issues", "state", "closed",g);
-				int lastPage = o.getPages(responseString);
-				
-				
-				for (int i=1 ; i<=lastPage ; i++)
-				{
-					jsonRequestResponse = g
-							.entry()
-							.uri()
-							.path("/repos/"+name+"/"+repositoryName+"/issues")
-							.queryParam("state", "closed")
-							.queryParam("page", String.valueOf(i))
-							.back()
-							.method(Request.GET)
-							.fetch()
-							.as(JsonResponse.class)
-							.json();
-						
-					jsonRequestArray= jsonRequestResponse.readArray();
-					issueResponses.add(jsonRequestArray.toString());
-				}
-				for(String r : issueResponses)
-				{
-					System.out.println(r);
-				}
+				stateParameter="closed";
 			}
 			else
 			{
 				//TODO:print out something more informative
-				System.out.println("Invalid selection of issue state parameter. Please try again");
+				System.out.println("Invalid selection of issue state parameter. Will reset to default value (all) \n");
 				System.out.println("0 -> all , 1 -> open only , 2 -> closed only ");
+			}
+			
+			//actual work
+			//hashmap holding the URI request parameters
+			Map<String,String> params = new HashMap<String,String>();
+			params.put("state", stateParameter);
+			
+			if(!from.isEmpty())
+			{
+				params.put("filter", "all");
+				//will return issues UPDATED at or before since value
+				params.put("since", from);
 			}
 			
 			
 			
+			
+			String responseString = o.getRequest(username, password, name, repositoryName, "issues", params, g);
+			
+			int lastPage = o.getPages(responseString);
+			//System.out.println(lastPage);
+		
+			
+			//Loop through all pages and get response back. 
+			//TODO:work on real storage, not just printing it.
+		
+			for (int i=1 ; i<=lastPage ; i++)
+			{
+				
+				jsonRequestResponse = g
+						.entry()
+						.uri()
+						.path("/repos/"+name+"/"+repositoryName+"/issues")
+						.queryParams(params)
+						.queryParam("page", String.valueOf(i))
+						.back()
+						.method(Request.GET)
+						.fetch()
+						.as(JsonResponse.class)
+						.json();
+					
+				jsonRequestArray= jsonRequestResponse.readArray();
+				issueResponses.add(jsonRequestArray.toString());
+			}
+			params.clear();
+			for(String r : issueResponses)
+			{
+				System.out.println(r);
+			}
+					
 			
 		}
 		catch(IOException e)
@@ -307,41 +273,65 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	}
 
 	
-	public void getCommits(String username,String password,String name,String repositoryName) throws IOException
+	public void getCommits(String username,String password,String name,String repositoryName,String from, String to) throws IOException
 	{
-		//TODO:add by date feature?
+		//TODO:add by author support?
 		//login window
 		Githubdownloader o = new Githubdownloader();
 		Github g =o.login(username, password);
+		Map<String,String> params = new HashMap<String,String>();
+		int i=1;	
+		
+		params.put("page", String.valueOf(i));
+		
+		if ( ( !from.isEmpty() ) || (!to.isEmpty()  ) )
+		{
+			//TODO: leave that as is or give branch option?
+			
+			params.put("sha", "master");
+		}
+		
+		if ( ( !from.isEmpty() ) )
+		{
+			params.put("since", from);
+		}
+		
+		if ( ( !to.isEmpty() ) )
+		{
+			params.put("until", to);
+		}
 		
 		
 		
 		//arraylist to hold responses
+		
 		ArrayList<String> commit_responses = new ArrayList<String>();
-		int i=1;		
-		String responseString = o.getRequest(username, password, name, repositoryName, "commits", "page", String.valueOf(i),g);
+			
+		String responseString = o.getRequest(username, password, name, repositoryName, "commits", params,g);
+
 		
 		
+		//must match exactly with API, even the spaces.
 		
 		while(responseString.contains("; rel=\"next\""))
 		{
+			//trim what we don't need, and keep the json info
 			
 			commit_responses.add( responseString.substring( responseString.indexOf("[{\"sha\""), responseString.length() ) );
-			i++;
 			System.out.println("grabbing commit page "+String.valueOf(i));
-			/*responseString= g
-					.entry()
-					.uri()
-					.path("/repos/"+name+"/"+repositoryName+"/commits")
-					.queryParam("page", String.valueOf(i))
-					.back()
-					.method(Request.GET)
-					.fetch()
-					.toString();*/
-			responseString = o.getRequest(username, password, name, repositoryName, "commits", "page", String.valueOf(i),g);
+			i++;
+			//next page
+			
+			params.put("page", String.valueOf(i));
+			responseString = o.getRequest(username, password, name, repositoryName, "commits", params,g);
 		}
+		//and the last one
 		
+		System.out.println("grabbing commit page "+String.valueOf(i));
+		commit_responses.add( responseString.substring( responseString.indexOf("[{\"sha\""), responseString.length() ) );
 		//print for now, will be properly stored later.
+		
+		params.clear();
 		for(String r :commit_responses)
 		{
 			System.out.println(r);
@@ -384,6 +374,10 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		//name is the name of the github user who owns the repository we're interested in.
 		//repositoryName is the repository name we're interested in.
 		
+		//TODO:enforce date pattern with simpledateformat
+		//decide how user inputs from-to dates.change hardcoded values
+		
+		
 		
 		
 		int state = 0 ;
@@ -391,9 +385,9 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		o.setUserInfo();
 		//o.login(username, password);
 		//o.getGithubUserInfo("jcabi",username,password);
-		//o.getIssues(username,password,name,repositoryName,state);
-		//o.getCommits(username, password, name, repositoryName);
-		o.cloneRepo();
+		//o.getIssues(username,password,name,repositoryName,state,"2015-01-01");
+		o.getCommits(username, password, name, repositoryName,"2015-01-01","2015-08-08");
+		//o.cloneRepo();
 	
 		
 		
