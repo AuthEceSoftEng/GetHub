@@ -3,7 +3,11 @@ package gethub;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -80,6 +84,13 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		}
 	}
 	
+	/*public void setUserInfo()
+	{
+		username="" ;
+		name ="jcabi";
+		password = "";
+		repositoryName = "jcabi-github";
+	}*/
 
 	
 	public Github login(String username, String password) 
@@ -162,7 +173,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		return lastPage;
 	}
 	
-	public void getIssues(String username,String password,String name,String repositoryName,int state,String from)
+	public void getIssues(String username,String password,String name,String repositoryName,int state,String updatedFrom,String createdFrom,String createdTo) throws ParseException
 	
 	{
 		//open a login window
@@ -170,8 +181,14 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		Github g =o.login(username, password);
 		
 		String stateParameter="all";
+		JsonObject jsonRequestObject = null;
 		JsonReader jsonRequestResponse;
 		JsonArray jsonRequestArray;
+		String creationDateString;
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		Date createdFromDate ;
+		Date createdToDate ;
+		boolean endLoop = false;
 		
 		try
 		{
@@ -195,6 +212,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			//If loop to select which issues to download. 
 			//0 is for all, 1 is for open only, 2 is for closed only.
 			ArrayList<String> issueResponses = new ArrayList<String>();
+			
 			if ( state==0 )
 			{
 				stateParameter="all";
@@ -219,13 +237,33 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			//hashmap holding the URI request parameters
 			Map<String,String> params = new HashMap<String,String>();
 			params.put("state", stateParameter);
+			params.put("direction", "asc");
 			
-			if(!from.isEmpty())
+			if(!updatedFrom.isEmpty())
 			{
 				params.put("filter", "all");
 				//will return issues UPDATED at or before since value
-				params.put("since", from);
+				params.put("since", updatedFrom);
 			}
+			
+			if(createdFrom.isEmpty())
+			{
+				//TODO:is this safe?
+				createdFromDate = sdf.parse("2000-01-01");
+			}
+			else
+			{
+				createdFromDate = sdf.parse(createdFrom);
+			}
+			if(createdTo.isEmpty())
+			{
+				createdToDate = sdf.parse(sdf.format(new Date()));
+			}
+			else
+			{
+				createdToDate = sdf.parse(createdTo);
+			}
+			
 			
 			
 			
@@ -242,6 +280,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			for (int i=1 ; i<=lastPage ; i++)
 			{
 				
+				
 				jsonRequestResponse = g
 						.entry()
 						.uri()
@@ -254,9 +293,39 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 						.as(JsonResponse.class)
 						.json();
 					
-				jsonRequestArray= jsonRequestResponse.readArray();
-				issueResponses.add(jsonRequestArray.toString());
+				jsonRequestArray = jsonRequestResponse.readArray();
+				
+				for( int  j=0 ; j<jsonRequestArray.size();j++ )
+				{
+					
+					creationDateString = jsonRequestArray
+										.getJsonObject(j)
+										.getString("created_at")
+										.substring(0,10);
+					
+					
+					jsonRequestObject = jsonRequestArray.getJsonObject(j);
+					
+					Date creationDate = null;
+					try {
+						creationDate = sdf.parse(creationDateString);
+					} catch (ParseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					if(Tools.dateValid(createdFromDate, createdToDate, creationDate)[0])
+					{
+						issueResponses.add( jsonRequestObject.toString() );
+					}
+					
+					if(Tools.dateValid(createdFromDate, createdToDate, creationDate)[1]){break;}
+					
+					
+				}
+				
 			}
+			
 			params.clear();
 			for(String r : issueResponses)
 			{
@@ -270,6 +339,24 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			e.printStackTrace();
 		}
 
+	}
+	
+	public void getLanguages(String username, String password, String name,String repositoryName)
+	{
+		
+		Githubdownloader o = new Githubdownloader();
+		Github g =o.login(username, password);
+		Map<String,String> params = new HashMap<String,String>();
+		ArrayList<String> language_response = new ArrayList<String>();
+		
+		String responseString = o.getRequest(username, password, name, repositoryName, "languages", params, g);
+		language_response.add(responseString.substring( responseString.indexOf("{\""), responseString.length() ) );
+		
+		for(String r :language_response  )
+		{
+			System.out.println(r);
+		}
+		
 	}
 
 	
@@ -368,7 +455,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	}
 
 	
-	public static void main(String[] args) throws IOException, InvalidRemoteException, TransportException, GitAPIException {
+	public static void main(String[] args) throws IOException, InvalidRemoteException, TransportException, GitAPIException, ParseException {
 		//Login first, using username/password , or your OAuth token (later).
 		//username/password are our own
 		//name is the name of the github user who owns the repository we're interested in.
@@ -385,10 +472,11 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		o.setUserInfo();
 		//o.login(username, password);
 		//o.getGithubUserInfo("jcabi",username,password);
-		//o.getIssues(username,password,name,repositoryName,state,"2015-01-01");
-		o.getCommits(username, password, name, repositoryName,"2015-01-01","2015-08-08");
+		o.getIssues(username,password,name,repositoryName,state,"","","");
+		//o.getCommits(username, password, name, repositoryName,"2015-01-01","2015-08-08");
 		//o.cloneRepo();
-	
+		//o.getLanguages(username, password, name, repositoryName);
+		
 		
 		
 		
