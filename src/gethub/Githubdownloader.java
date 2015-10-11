@@ -30,15 +30,7 @@ import org.eclipse.jgit.api.errors.TransportException;
 
 public class Githubdownloader implements GitHubDownloaderInterface {
 	
-	//TODO:add from:to feature
-	//before storage , do all API transactions via json, and get date keyset, then decide if it's storage worthy
-	//eg
-	// get jsonarray
-	//get object
-	// isOk(jsonObject.date())
-	// store jsonResponse.toString() or the json response itself. we'll see
-	//otherwise continue
-	//just do it from the API
+	
 	
 	
 	
@@ -50,6 +42,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	private static String password;
 	private static String name;
 	private static String repositoryName;
+	
 	
 	
 	public void setUserInfo()
@@ -123,12 +116,12 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		} 
 		catch (IOException e) 
 		{
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 	}
 	
-	//TODO:use this one?
+	
 	public String getRequest(String username,String password,String name,String repositoryName,String resource, Map params, Github g)
 	{
 		
@@ -211,7 +204,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			
 			//If loop to select which issues to download. 
 			//0 is for all, 1 is for open only, 2 is for closed only.
-			ArrayList<String> issueResponses = new ArrayList<String>();
+			ArrayList<JsonObject> issueResponses = new ArrayList<JsonObject>();
 			
 			if ( state==0 )
 			{
@@ -234,6 +227,8 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			}
 			
 			//actual work
+			
+			
 			//hashmap holding the URI request parameters
 			Map<String,String> params = new HashMap<String,String>();
 			params.put("state", stateParameter);
@@ -275,7 +270,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		
 			
 			//Loop through all pages and get response back. 
-			//TODO:work on real storage, not just printing it.
+			
 		
 			for (int i=1 ; i<=lastPage ; i++)
 			{
@@ -310,13 +305,13 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 					try {
 						creationDate = sdf.parse(creationDateString);
 					} catch (ParseException e) {
-						// TODO Auto-generated catch block
+						
 						e.printStackTrace();
 					}
 					
 					if(Tools.dateValid(createdFromDate, createdToDate, creationDate)[0])
 					{
-						issueResponses.add( jsonRequestObject.toString() );
+						issueResponses.add( jsonRequestObject );
 					}
 					
 					if(Tools.dateValid(createdFromDate, createdToDate, creationDate)[1]){break;}
@@ -327,10 +322,11 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 			}
 			
 			params.clear();
-			for(String r : issueResponses)
+			Tools.saveInDirectory("issues", "issues.txt", issueResponses);
+			/*for(JsonObject r : issueResponses)
 			{
 				System.out.println(r);
-			}
+			}*/
 					
 			
 		}
@@ -347,15 +343,12 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		Githubdownloader o = new Githubdownloader();
 		Github g =o.login(username, password);
 		Map<String,String> params = new HashMap<String,String>();
-		ArrayList<String> language_response = new ArrayList<String>();
+		ArrayList<String> languageResponse = new ArrayList<String>();
 		
 		String responseString = o.getRequest(username, password, name, repositoryName, "languages", params, g);
-		language_response.add(responseString.substring( responseString.indexOf("{\""), responseString.length() ) );
+		languageResponse.add(responseString.substring( responseString.indexOf("{\""), responseString.length() ) );
 		
-		for(String r :language_response  )
-		{
-			System.out.println(r);
-		}
+		Tools.saveInDirectory(languageResponse, "languages", "languages.txt");
 		
 	}
 
@@ -419,10 +412,7 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		//print for now, will be properly stored later.
 		
 		params.clear();
-		for(String r :commit_responses)
-		{
-			System.out.println(r);
-		}
+		Tools.saveInDirectory(commit_responses, "commits", "commits.txt");
 		
 		
 	}
@@ -435,14 +425,14 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 	{
 		
 		String REMOTE_URL = "https://github.com/"+name+"/"+repositoryName+".git";
-		File localPath = File.createTempFile("TestGitRepository","");
 		
-	    localPath.delete();
+	    Tools.createDirectory(repositoryName);
 	    
-	    System.out.println("Cloning from " + REMOTE_URL + " to " + localPath);
+	    
+	    System.out.println("Cloning from " + REMOTE_URL + " to GEThub/" + repositoryName);
         Git result = Git.cloneRepository()
                 .setURI(REMOTE_URL)
-                .setDirectory(localPath)
+                .setDirectory(new File( Tools.getFinalDirectory()+"/"+repositoryName ) )
                 .call();
         try {
 	        // Note: the call() returns an opened repository already which needs to be closed to avoid file handle leaks!
@@ -461,8 +451,8 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		//name is the name of the github user who owns the repository we're interested in.
 		//repositoryName is the repository name we're interested in.
 		
-		//TODO:enforce date pattern with simpledateformat
-		//decide how user inputs from-to dates.change hardcoded values
+		
+		
 		
 		
 		
@@ -470,12 +460,15 @@ public class Githubdownloader implements GitHubDownloaderInterface {
 		int state = 0 ;
 		Githubdownloader o = new Githubdownloader();
 		o.setUserInfo();
-		//o.login(username, password);
+		Tools.createDirectory("");
+		
+		
+		
 		//o.getGithubUserInfo("jcabi",username,password);
 		o.getIssues(username,password,name,repositoryName,state,"","","");
-		//o.getCommits(username, password, name, repositoryName,"2015-01-01","2015-08-08");
-		//o.cloneRepo();
-		//o.getLanguages(username, password, name, repositoryName);
+		o.getCommits(username, password, name, repositoryName,"2015-01-01","2015-08-08");
+		o.cloneRepo();
+		o.getLanguages(username, password, name, repositoryName);
 		
 		
 		
